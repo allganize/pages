@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LLM Device Estimator</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            background: #f9f9f9;
+        }
+        
+        .tabs {
+            display: flex;
+            background: #333;
+            color: #fff;
+        }
+        
+        .tab {
+            padding: 1rem;
+            cursor: pointer;
+            flex: 1;
+            text-align: center;
+        }
+        
+        .tab.active {
+            background: #555;
+            font-weight: bold;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1rem;
+            background: white;
+            min-height: 100vh;
+        }
+        
+        .content {
+            display: none;
+        }
+        
+        .content.active {
+            display: block;
+        }
+        
+        label {
+            display: block;
+            margin-top: 1.5rem;
+            font-weight: bold;
+        }
+        
+        input,
+        select {
+            width: 100%;
+            padding: 0.5rem;
+            margin-top: 0.3rem;
+            box-sizing: border-box;
+        }
+        
+        .result {
+            margin-top: 2rem;
+            font-weight: bold;
+            font-size: 1.3em;
+        }
+        
+        .formula {
+            margin-top: 0.5rem;
+            font-size: 0.95em;
+            color: #444;
+        }
+        
+        .derived-box {
+            border: 1px solid #ccc;
+            padding: 1rem;
+            background: #f5f5f5;
+            margin-top: 1.5rem;
+            border-radius: 5px;
+        }
+        
+        .derived-box legend {
+            font-weight: bold;
+            padding: 0 0.5rem;
+            color: #333;
+        }
+        
+        pre {
+            background: #f0f0f0;
+            padding: 1rem;
+            overflow-x: auto;
+            margin-top: 1rem;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="tabs">
+        <div class="tab active" data-tab="calculator">LLM Device Calculator</div>
+        <div class="tab" data-tab="constants">Constants</div>
+    </div>
+
+    <div class="container">
+        <!-- 계산기 탭 -->
+        <div id="calculator" class="content active">
+            <h2>LLM Device Estimator</h2>
+
+            <label>LLM Model
+        <select id="modelSelect"></select>
+      </label>
+            <label>Device
+        <select id="deviceSelect"></select>
+      </label>
+            <label>Input Context
+        <select id="contextSelect"></select>
+      </label>
+
+            <fieldset class="derived-box">
+                <legend>Derived from Selection (Editable)</legend>
+                <label>Max Token Generation per Second
+          <input type="number" id="maxTokenPerSec" />
+        </label>
+                <label>TTFT (Time To First Token)
+          <input type="number" step="0.01" id="ttftValue" />
+        </label>
+            </fieldset>
+
+            <label>LLM Output Token Length per Request
+        <input type="number" id="outputTokens" />
+      </label>
+            <label>Concurrent LLM Requests
+        <input type="number" id="concurrentRequests" />
+      </label>
+            <label>Target Processing Time (seconds)
+        <input type="number" step="0.1" id="targetTime" />
+      </label>
+
+            <div class="result" id="calcResult">Required Devices: -</div>
+            <div class="formula" id="calcFormula"></div>
+        </div>
+
+        <!-- 상수 탭 -->
+        <div id="constants" class="content">
+            <h2>Constants (Embedded in JavaScript)</h2>
+            <pre id="constantDisplay">Loading...</pre>
+        </div>
+    </div>
+
+    <script>
+        const constants = {
+            // From: https: //allganize2.atlassian.net/wiki/spaces/AL/pages/3085107243/Qwen+2.5+32B+TPS
+            "llm_performance": [{
+                "model": "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8",
+                "device": "2 x H100 (NVL)",
+                "input_context": "32K",
+                "ttft": 1.0,
+                "max_token_per_sec": 1043.8104
+            }, {
+                "model": "Qwen/Qwen2.5-32B-Instruct-GPTQ-Int8",
+                "device": "1 x H100",
+                "input_context": "16K",
+                "ttft": 1.0,
+                "max_token_per_sec": 508.4264
+            }],
+            "reranker_performance": [],
+            "embedding_performance": []
+        };
+
+        window.addEventListener('DOMContentLoaded', () => {
+            // 탭 전환 로직
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.addEventListener('click', () => {
+                    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                    document.querySelectorAll('.content').forEach(c => c.classList.remove('active'));
+                    tab.classList.add('active');
+                    document.getElementById(tab.dataset.tab).classList.add('active');
+                });
+            });
+
+            // DOM 참조
+            const modelSelect = document.getElementById('modelSelect');
+            const deviceSelect = document.getElementById('deviceSelect');
+            const contextSelect = document.getElementById('contextSelect');
+            const maxTokenPerSec = document.getElementById('maxTokenPerSec');
+            const ttftValue = document.getElementById('ttftValue');
+            const outputTokens = document.getElementById('outputTokens');
+            const concurrentRequests = document.getElementById('concurrentRequests');
+            const targetTime = document.getElementById('targetTime');
+            const calcResult = document.getElementById('calcResult');
+            const calcFormula = document.getElementById('calcFormula');
+            const constantDisplay = document.getElementById('constantDisplay');
+
+            // 드롭다운 초기화
+            const models = [...new Set(constants.llm_performance.map(i => i.model))];
+            const devices = [...new Set(constants.llm_performance.map(i => i.device))];
+            const contexts = [...new Set(constants.llm_performance.map(i => i.input_context))];
+
+            models.forEach(m => modelSelect.innerHTML += `<option>${m}</option>`);
+            devices.forEach(d => deviceSelect.innerHTML += `<option>${d}</option>`);
+            contexts.forEach(c => contextSelect.innerHTML += `<option>${c}</option>`);
+
+            constantDisplay.textContent = JSON.stringify(constants, null, 2);
+
+            // 선택이 바뀔 때 기본값 채우기
+            function updateDefaults() {
+                const perf = constants.llm_performance.find(item =>
+                    item.model === modelSelect.value &&
+                    item.device === deviceSelect.value &&
+                    item.input_context === contextSelect.value
+                );
+                if (!outputTokens.value) outputTokens.value = 1000;
+                if (perf) {
+                    maxTokenPerSec.value = perf.max_token_per_sec;
+                    ttftValue.value = perf.ttft;
+                    calculate();
+                } else {
+                    maxTokenPerSec.value = NaN;
+                    ttftValue.value = NaN;
+                    calculate();
+                }
+            }
+
+            // 계산 로직
+            function calculate() {
+                const reqs = parseInt(concurrentRequests.value, 10);
+                const out = parseInt(outputTokens.value, 10);
+                const tgt = parseFloat(targetTime.value);
+                const ttft = parseFloat(ttftValue.value);
+                const mtps = parseFloat(maxTokenPerSec.value);
+
+                if ([reqs, out, tgt, ttft, mtps].some(isNaN)) {
+                    calcResult.textContent = 'Required Devices: -';
+                    calcFormula.textContent = '';
+                    return;
+                }
+
+                const newTime = tgt - ttft;
+                if (newTime <= 0 || mtps <= 0) {
+                    calcResult.textContent = 'Error: Check Target Time vs. TTFT or Max TPS.';
+                    calcFormula.textContent = '';
+                    return;
+                }
+
+                const needed = Math.ceil((reqs * out) / (mtps * newTime));
+                calcResult.textContent = `Required Devices: ${needed}`;
+                calcFormula.textContent =
+                    `Formula: (# of Requests (${reqs}) × Output Tokens (${out})) / ` +
+                    `(Max TPS (${mtps}) × (Target Time (${tgt}) - TTFT (${ttft})))`;
+            }
+
+            // 이벤트 바인딩
+            [modelSelect, deviceSelect, contextSelect].forEach(el => el.addEventListener('change', updateDefaults));
+            [maxTokenPerSec, ttftValue, outputTokens, concurrentRequests, targetTime].forEach(el => el.addEventListener('input', calculate));
+
+            updateDefaults();
+        });
+    </script>
+
+</body>
+
+</html>
