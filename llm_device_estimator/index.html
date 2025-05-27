@@ -108,36 +108,33 @@
         <!-- 계산기 탭 -->
         <div id="calculator" class="content active">
             <h2>LLM Device Estimator</h2>
-
-            <label>LLM Model
-        <select id="modelSelect"></select>
-      </label>
-            <label>Device
-        <select id="deviceSelect"></select>
-      </label>
-            <label>Input Context
-        <select id="contextSelect"></select>
-      </label>
+            <label>LLM Model</label>
+            <select id="modelSelect"></select>
+            <label>Device</label>
+            <select id="deviceSelect"></select>
+            <label>Input Context</label>
+            <select id="contextSelect"></select>
 
             <fieldset class="derived-box">
                 <legend>Derived from Selection (Editable)</legend>
-                <label>Max Token Generation per Second
-          <input type="number" id="maxTokenPerSec" />
-        </label>
-                <label>TTFT (Time To First Token)
-          <input type="number" step="0.01" id="ttftValue" />
-        </label>
+                <label>Max Token Generation per Second</label>
+                <input type="number" id="maxTokenPerSec" />
+                <label>TTFT (Time To First Token)</label>
+                <input type="number" step="0.01" id="ttftValue" />
             </fieldset>
 
-            <label>LLM Output Token Length per Request
-        <input type="number" id="outputTokens" />
-      </label>
-            <label>Concurrent LLM Requests
-        <input type="number" id="concurrentRequests" />
-      </label>
-            <label>Target Processing Time (seconds)
-        <input type="number" step="0.1" id="targetTime" />
-      </label>
+            <label>LLM Output Token Length per Request</label>
+            <pre>PDF 1 Page: ~ 2K Tokens
+Single RAG Answer: ~ 500 Tokens ( But it consume 1000 Tokens for Intent classification or something else)
+Translate: Almost same as Input Token length
+Summary: ??
+</pre>
+            <input type="number" id="outputTokens" />
+            </label>
+            <label>Concurrent LLM Requests</label>
+            <input type="number" id="concurrentRequests" />
+            <label>Target Processing Time (seconds)</label>
+            <input type="number" step="0.1" id="targetTime" />
 
             <div class="result" id="calcResult">Required Devices: -</div>
             <div class="formula" id="calcFormula"></div>
